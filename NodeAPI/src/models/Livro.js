@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const livroSchema =- new mongoose.Schema({
+const livroSchema = new mongoose.Schema({
     id :{
         type: mongoose.Schema.Types.ObjectId
     },

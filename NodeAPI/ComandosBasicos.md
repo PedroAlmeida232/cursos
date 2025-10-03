@@ -1,6 +1,6 @@
-# Fundamentos de Node.js e Criação de APIs
+# Fundamentos de Node.js, Express e MongoDB
 
-Este repositório contém um resumo dos fundamentos essenciais de Node.js, incluindo comandos básicos e a criação de APIs RESTful com Express.
+Este repositório serve como um guia abrangente para os fundamentos de Node.js, a criação de APIs RESTful com Express.js e a integração com o banco de dados MongoDB, utilizando Mongoose para uma gestão de dados eficiente.
 
 ## Índice
 
@@ -9,7 +9,9 @@ Este repositório contém um resumo dos fundamentos essenciais de Node.js, inclu
 - [Comandos Básicos do Node.js e npm](#comandos-básicos-do-nodejs-e-npm)
 - [Módulos e npm](#módulos-e-npm)
 - [Criação de APIs com Express](#criação-de-apis-com-express)
-- [Exemplos Práticos de API](#exemplos-práticos-de-api)
+- [Integração com MongoDB e Mongoose](#integração-com-mongodb-e-mongoose)
+- [Estrutura de Pastas Recomendada para Projetos Express/MongoDB](#estrutura-de-pastas-recomendada-para-projetos-expressmongodb)
+- [Exemplos Práticos de API com MongoDB](#exemplos-práticos-de-api-com-mongodb)
 
 ## O que é Node.js?
 
@@ -81,7 +83,7 @@ Existem várias maneiras de instalar o Node.js, dependendo do seu sistema operac
 
 ### Executando Arquivos JavaScript
 
-Você pode executar um arquivo JavaScript diretamente com o Node.js usando o comando `node`:
+You can execute a JavaScript file directly with Node.js using the `node` command:
 
 ```bash
 node meu_arquivo.js
@@ -289,7 +291,7 @@ Historicamente, Node.js usava o sistema de módulos **CommonJS** (com `require()
   // Exportar
   module.exports = minhaFuncao;
   // Importar
-  const minhaFuncao = require('./meuModulo');
+  const minhaFuncao = require(\'./meuModulo\');
   ```
 
 - **ES Modules (padrão em arquivos `.mjs` ou `.js` com `"type": "module"` no `package.json`):**
@@ -298,8 +300,8 @@ Historicamente, Node.js usava o sistema de módulos **CommonJS** (com `require()
   export default minhaFuncao;
   export const outraFuncao = () => {};
   // Importar
-  import minhaFuncao from './meuModulo.mjs';
-  import { outraFuncao } from './meuModulo.mjs';
+  import minhaFuncao from \'./meuModulo.mjs\';
+  import { outraFuncao } from \'./meuModulo.mjs\';
   ```
 
 Para usar ES Modules em arquivos `.js` comuns, adicione `"type": "module"` ao seu `package.json`:
@@ -392,10 +394,10 @@ Rotas definem como a aplicação responde a uma requisição de cliente para um 
 
 **Exemplos de Métodos HTTP e Uso:**
 
-- **GET:** Usado para solicitar dados de um recurso especificado. (Ex: `app.get('/users', ...)`)
-- **POST:** Usado para enviar dados a um recurso especificado. (Ex: `app.post('/users', ...)`)
-- **PUT:** Usado para atualizar um recurso especificado. (Ex: `app.put('/users/:id', ...)`)
-- **DELETE:** Usado para deletar um recurso especificado. (Ex: `app.delete('/users/:id', ...)`)
+- **GET:** Usado para solicitar dados de um recurso especificado. (Ex: `app.get(\'/users\', ...)`)
+- **POST:** Usado para enviar dados a um recurso especificado. (Ex: `app.post(\'/users\', ...)`)
+- **PUT:** Usado para atualizar um recurso especificado. (Ex: `app.put(\'/users/:id\', ...)`)
+- **DELETE:** Usado para deletar um recurso especificado. (Ex: `app.delete(\'/users/:id\', ...)`)
 
 ### Middleware
 
@@ -427,7 +429,7 @@ function autenticar(req, res, next) {
 }
 
 // Aplicando middleware a uma rota específica
-app.get("/admin", autenticar, (req, res) => {
+app.get(\'/admin\', autenticar, (req, res) => {
   res.send("Bem-vindo à área de administração!");
 });
 ```
@@ -446,127 +448,369 @@ app.use((err, req, res, next) => {
 });
 ```
 
-## Exemplos Práticos de API
+## Integração com MongoDB e Mongoose
 
-Vamos expandir o exemplo anterior para criar uma API RESTful simples para gerenciar uma lista de "itens".
+MongoDB é um banco de dados NoSQL orientado a documentos, conhecido por sua flexibilidade e escalabilidade. Mongoose é uma biblioteca de modelagem de objetos (ODM - Object Data Modeling) para Node.js que facilita a interação com o MongoDB, fornecendo uma maneira baseada em esquema para modelar os dados da sua aplicação.
 
-### Estrutura do Projeto
+### Instalação do Mongoose
 
-Uma estrutura de projeto Node.js típica para uma API pode ser:
+Primeiro, certifique-se de ter o MongoDB instalado e rodando em sua máquina ou utilize um serviço de nuvem como MongoDB Atlas. Em seguida, instale o Mongoose no seu projeto:
 
-```
-minha-api-restful/
-├── node_modules/
-├── package.json
-├── app.js
-└── routes/
-    └── itens.js
+```bash
+npm install mongoose
 ```
 
-- `app.js`: O arquivo principal que configura o servidor Express e importa as rotas.
-- `routes/itens.js`: Contém as definições de rota para os recursos de "itens".
+### Conectando ao MongoDB
 
-### `app.js` (Arquivo Principal)
+Para conectar sua aplicação Node.js ao MongoDB usando Mongoose, você pode adicionar o seguinte código ao seu arquivo principal (`app.js` ou `server.js`):
+
+```javascript
+// db.js (ou no seu arquivo principal)
+const mongoose = require("mongoose");
+
+const connectDB = async () => {
+  try {
+    await mongoose.connect(process.env.MONGO_URI || "mongodb://localhost:27017/meubanco", {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
+    console.log("MongoDB conectado com sucesso!");
+  } catch (err) {
+    console.error("Erro ao conectar ao MongoDB:", err.message);
+    process.exit(1); // Sai do processo com falha
+  }
+};
+
+module.exports = connectDB;
+```
+
+No seu `app.js`:
 
 ```javascript
 // app.js
 const express = require("express");
+const connectDB = require("./config/db"); // Assumindo que você criou um arquivo db.js em config/
+
+// Carregar variáveis de ambiente (se estiver usando dotenv)
+require("dotenv").config();
+
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000;
 
-// Importa as rotas de itens
-const itensRoutes = require("./routes/itens");
+// Conectar ao banco de dados
+connectDB();
 
-// Middleware para parsear JSON no corpo das requisições
-app.use(express.json());
+// ... (restante da sua configuração Express)
 
-// Usa as rotas de itens sob o prefixo /api/itens
-app.use("/api/itens", itensRoutes);
-
-// Rota de teste para a raiz
-app.get("/", (req, res) => {
-  res.send("API de Itens funcionando!");
-});
-
-// Middleware de tratamento de erros (opcional, mas recomendado)
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).send("Erro interno do servidor!");
-});
-
-// Inicia o servidor
 app.listen(port, () => {
   console.log(`Servidor rodando em http://localhost:${port}`);
 });
 ```
 
-### `routes/itens.js` (Rotas para Itens)
+*Nota: É altamente recomendável usar variáveis de ambiente para armazenar a string de conexão do MongoDB (e outras informações sensíveis). Você pode usar a biblioteca `dotenv` para isso (`npm install dotenv`).*
 
-Crie o diretório `routes` e o arquivo `itens.js` dentro dele:
+### Definindo Schemas e Modelos com Mongoose
+
+Um **Schema** no Mongoose define a estrutura do documento e os tipos de dados que ele pode conter. Um **Model** é uma classe que interage com a coleção do MongoDB, permitindo operações CRUD.
+
+**Exemplo de Schema e Model para um `Item`:**
 
 ```javascript
-// routes/itens.js
+// models/Item.js
+const mongoose = require("mongoose");
+
+const ItemSchema = new mongoose.Schema({
+  nome: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  descricao: {
+    type: String,
+    required: false,
+  },
+  quantidade: {
+    type: Number,
+    required: true,
+    default: 0,
+  },
+  dataCriacao: {
+    type: Date,
+    default: Date.now,
+  },
+});
+
+module.exports = mongoose.model("Item", ItemSchema);
+```
+
+## Estrutura de Pastas Recomendada para Projetos Express/MongoDB
+
+Uma estrutura de pastas bem organizada é crucial para a manutenibilidade e escalabilidade de projetos Node.js e Express. A seguir, apresentamos uma estrutura comum e suas explicações:
+
+```
+meu-projeto-api/
+├── node_modules/
+├── .env
+├── .gitignore
+├── package.json
+├── server.js (ou app.js)
+├── config/
+│   └── db.js
+├── models/
+│   └── Item.js
+├── routes/
+│   └── api/ (opcional, para versionamento ou agrupamento)
+│       └── itens.js
+├── controllers/
+│   └── itemController.js
+├── middleware/
+│   └── authMiddleware.js
+│   └── errorMiddleware.js
+├── utils/
+│   └── errorHandler.js
+│   └── logger.js
+└── tests/
+    └── item.test.js
+```
+
+### Explicação da Estrutura de Pastas:
+
+-   **`node_modules/`**: Contém todas as dependências do projeto instaladas via npm. Deve ser ignorado pelo controle de versão (`.gitignore`).
+-   **`.env`**: Arquivo para armazenar variáveis de ambiente sensíveis (como strings de conexão de banco de dados, chaves de API, etc.). Não deve ser versionado.
+-   **`.gitignore`**: Lista de arquivos e pastas que o Git deve ignorar (ex: `node_modules/`, `.env`).
+-   **`package.json`**: Metadados do projeto, scripts e lista de dependências.
+-   **`server.js` (ou `app.js`)**: O ponto de entrada principal da aplicação. Configura o servidor Express, conecta ao banco de dados e importa as rotas principais.
+-   **`config/`**: Contém arquivos de configuração para o banco de dados, variáveis de ambiente, etc.
+    -   **`db.js`**: Lógica de conexão com o MongoDB usando Mongoose.
+-   **`models/`**: Define os schemas e modelos do Mongoose para as coleções do MongoDB.
+    -   **`Item.js`**: Schema e modelo para a coleção de itens.
+-   **`routes/`**: Define as rotas da API. Cada arquivo geralmente corresponde a um recurso (e.g., `itens.js` para rotas relacionadas a itens).
+    -   **`api/` (opcional)**: Pode ser usado para organizar rotas por versão (`v1/`, `v2/`) ou por agrupamento lógico.
+        -   **`itens.js`**: Define as rotas HTTP para operações CRUD em itens (e.g., GET /api/itens, POST /api/itens).
+-   **`controllers/`**: Contém a lógica de negócios para cada rota. Os controllers recebem a requisição, interagem com os modelos e enviam a resposta.
+    -   **`itemController.js`**: Funções que implementam a lógica para cada rota de item (e.g., `getAllItems`, `createItem`).
+-   **`middleware/`**: Funções de middleware que podem ser aplicadas a rotas ou globalmente (autenticação, validação, log, tratamento de erros).
+    -   **`authMiddleware.js`**: Lógica para autenticação de usuários (e.g., JWT).
+    -   **`errorMiddleware.js`**: Middleware centralizado para tratamento de erros.
+-   **`utils/`**: Utilitários e funções auxiliares que podem ser reutilizadas em várias partes da aplicação.
+    -   **`errorHandler.js`**: Funções para padronizar o tratamento e formatação de erros.
+    -   **`logger.js`**: Configuração de um logger para a aplicação.
+-   **`tests/`**: Contém os testes unitários e de integração para a aplicação.
+    -   **`item.test.js`**: Testes para as funcionalidades relacionadas a itens.
+
+## Exemplos Práticos de API com MongoDB
+
+Vamos refatorar o exemplo anterior de API de itens para usar a estrutura de pastas recomendada e integrar o MongoDB com Mongoose.
+
+### 1. Configuração Inicial
+
+Crie a estrutura de pastas e os arquivos conforme o diagrama acima. Instale as dependências:
+
+```bash
+mkdir meu-projeto-api
+cd meu-projeto-api
+npm init -y
+npm install express mongoose dotenv
+npm install nodemon --save-dev # Opcional, para desenvolvimento
+```
+
+Crie um arquivo `.env` na raiz do projeto:
+
+```
+PORT=3000
+MONGO_URI=mongodb://localhost:27017/meubancoapi
+```
+
+### 2. `config/db.js`
+
+```javascript
+const mongoose = require("mongoose");
+
+const connectDB = async () => {
+  try {
+    await mongoose.connect(process.env.MONGO_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
+    console.log("MongoDB conectado com sucesso!");
+  } catch (err) {
+    console.error("Erro ao conectar ao MongoDB:", err.message);
+    process.exit(1); // Sai do processo com falha
+  }
+};
+
+module.exports = connectDB;
+```
+
+### 3. `models/Item.js`
+
+```javascript
+const mongoose = require("mongoose");
+
+const ItemSchema = new mongoose.Schema({
+  nome: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  descricao: {
+    type: String,
+    required: false,
+  },
+  quantidade: {
+    type: Number,
+    required: true,
+    default: 0,
+  },
+  dataCriacao: {
+    type: Date,
+    default: Date.now,
+  },
+});
+
+module.exports = mongoose.model("Item", ItemSchema);
+```
+
+### 4. `controllers/itemController.js`
+
+```javascript
+const Item = require("../models/Item");
+
+// @desc    Obter todos os itens
+// @route   GET /api/itens
+// @access  Public
+exports.getItems = async (req, res) => {
+  try {
+    const itens = await Item.find();
+    res.status(200).json({ success: true, count: itens.length, data: itens });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+// @desc    Obter um único item
+// @route   GET /api/itens/:id
+// @access  Public
+exports.getItem = async (req, res) => {
+  try {
+    const item = await Item.findById(req.params.id);
+    if (!item) {
+      return res.status(404).json({ success: false, error: "Item não encontrado" });
+    }
+    res.status(200).json({ success: true, data: item });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+// @desc    Criar novo item
+// @route   POST /api/itens
+// @access  Public
+exports.createItem = async (req, res) => {
+  try {
+    const newItem = await Item.create(req.body);
+    res.status(201).json({ success: true, data: newItem });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+};
+
+// @desc    Atualizar item
+// @route   PUT /api/itens/:id
+// @access  Public
+exports.updateItem = async (req, res) => {
+  try {
+    let item = await Item.findById(req.params.id);
+    if (!item) {
+      return res.status(404).json({ success: false, error: "Item não encontrado" });
+    }
+    item = await Item.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+      runValidators: true,
+    });
+    res.status(200).json({ success: true, data: item });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+};
+
+// @desc    Deletar item
+// @route   DELETE /api/itens/:id
+// @access  Public
+exports.deleteItem = async (req, res) => {
+  try {
+    const item = await Item.findById(req.params.id);
+    if (!item) {
+      return res.status(404).json({ success: false, error: "Item não encontrado" });
+    }
+    await item.deleteOne(); // Usar deleteOne() ou deleteMany() para remover documentos
+    res.status(200).json({ success: true, data: {} });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+```
+
+### 5. `routes/api/itens.js`
+
+```javascript
 const express = require("express");
+const { getItems, getItem, createItem, updateItem, deleteItem } = require("../../controllers/itemController");
+
 const router = express.Router();
 
-// Simula um banco de dados em memória
-let itens = [
-  { id: 1, nome: "Item A", quantidade: 10 },
-  { id: 2, nome: "Item B", quantidade: 20 }
-];
-
-// GET /api/itens - Retorna todos os itens
-router.get("/", (req, res) => {
-  res.json(itens);
-});
-
-// GET /api/itens/:id - Retorna um item específico por ID
-router.get("/:id", (req, res) => {
-  const id = parseInt(req.params.id);
-  const item = itens.find(i => i.id === id);
-  if (item) {
-    res.json(item);
-  } else {
-    res.status(404).send("Item não encontrado");
-  }
-});
-
-// POST /api/itens - Adiciona um novo item
-router.post("/", (req, res) => {
-  const novoItem = req.body;
-  if (!novoItem.nome || !novoItem.quantidade) {
-    return res.status(400).send("Nome e quantidade são obrigatórios");
-  }
-  novoItem.id = itens.length > 0 ? Math.max(...itens.map(i => i.id)) + 1 : 1;
-  itens.push(novoItem);
-  res.status(201).json(novoItem);
-});
-
-// PUT /api/itens/:id - Atualiza um item existente
-router.put("/:id", (req, res) => {
-  const id = parseInt(req.params.id);
-  const itemIndex = itens.findIndex(i => i.id === id);
-  if (itemIndex !== -1) {
-    itens[itemIndex] = { ...itens[itemIndex], ...req.body, id: id };
-    res.json(itens[itemIndex]);
-  } else {
-    res.status(404).send("Item não encontrado");
-  }
-});
-
-// DELETE /api/itens/:id - Deleta um item
-router.delete("/:id", (req, res) => {
-  const id = parseInt(req.params.id);
-  const initialLength = itens.length;
-  itens = itens.filter(i => i.id !== id);
-  if (itens.length < initialLength) {
-    res.status(204).send(); // No Content
-  } else {
-    res.status(404).send("Item não encontrado");
-  }
-});
+router.route("/").get(getItems).post(createItem);
+router.route("/:id").get(getItem).put(updateItem).delete(deleteItem);
 
 module.exports = router;
 ```
+
+### 6. `server.js` (Arquivo Principal)
+
+```javascript
+const express = require("express");
+const dotenv = require("dotenv");
+const connectDB = require("./config/db");
+
+// Carregar variáveis de ambiente
+dotenv.config({ path: \'./.env\' });
+
+// Conectar ao banco de dados
+connectDB();
+
+const app = express();
+
+// Middleware para parsear JSON no corpo das requisições
+app.use(express.json());
+
+// Importar rotas
+const itens = require("./routes/api/itens");
+
+// Montar rotas
+app.use("/api/itens", itens);
+
+// Rota de teste para a raiz
+app.get("/", (req, res) => {
+  res.send("API de Itens com MongoDB funcionando!");
+});
+
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, () => {
+  console.log(`Servidor rodando em modo ${process.env.NODE_ENV || \'development\'} na porta ${PORT}`);
+});
+```
+
+### Como Executar:
+
+1.  Certifique-se de ter o MongoDB rodando.
+2.  Navegue até a pasta `meu-projeto-api` no terminal.
+3.  Execute `npm install` para instalar as dependências.
+4.  Execute `node server.js` (ou `npm start` se você configurou o script `start` no `package.json` para `node server.js`).
+    *   Para desenvolvimento, você pode usar `nodemon server.js` (se instalou `nodemon`) para reiniciar o servidor automaticamente a cada alteração.
+
+Agora você tem uma API RESTful completa com Express e MongoDB, seguindo uma estrutura de pastas organizada e boas práticas.
+
+---
 
 
